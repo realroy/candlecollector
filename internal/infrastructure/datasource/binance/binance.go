@@ -43,29 +43,29 @@ func (s *CandleCollectorStrategy) getCandleStick(symbol, interval string) {
 	stopAt := now.AddDate(0, -1, 0)
 	endTime := now
 
+	filePath := fmt.Sprintf("data/%s/%s/%d-%d.json", symbol, interval, now.Year(), int(now.Month()))
+
 	klineHistory := make([]interface{}, 0)
-	for endTime.Month() != stopAt.Month() && endTime.Day() != stopAt.Day() {
+
+	for endTime.Month() != stopAt.Month() {
 		log.Println("now: ", endTime.Format(time.RFC3339), "stopAt: ", stopAt.Format(time.RFC3339))
 		log.Println("get klines ...")
 
-		klines, _ := s.GetKlines(symbol, interval, endTime.UnixNano())
+		klines, _ := s.GetKlines(symbol, interval, endTime.Unix()*1000)
+		oldestKline := klines[0].([]interface{})
+		log.Println("oldest", oldestKline[0])
 
 		for i := len(klines) - 1; i >= 0; i-- {
 			klineHistory = append(klineHistory, klines[i])
 		}
 
-		oldestKline := klines[0].([]interface{})
-
 		endTime = s.float64ToTimeUnix(oldestKline[0].(float64))
-
-		filePath := fmt.Sprintf("data/%s/%s/%d-%d.json", symbol, interval, now.Year(), int(now.Month()))
-
 		s.persistence.Save(filePath, klineHistory)
 
 		time.Sleep(2 * time.Second)
 	}
 
-	s.persistence.Save("data/"+interval+"/"+now.Month().String()+".json", klineHistory)
+	s.persistence.Save(filePath, klineHistory)
 }
 
 func (s *CandleCollectorStrategy) getServerTime() (*time.Time, error) {
